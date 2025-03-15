@@ -1,4 +1,4 @@
-# IdeaP2p
+# Peer2peer
 
 To start your Phoenix server:
 

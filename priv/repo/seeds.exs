@@ -5,7 +5,7 @@
 # Inside the script, you can read and write to any of your
 # repositories directly:
 #
-#     IdeaP2p.Repo.insert!(%IdeaP2p.SomeSchema{})
+#     Peer2peer.Repo.insert!(%Peer2peer.SomeSchema{})
 #
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.

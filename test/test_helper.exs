@@ -1,2 +1,2 @@
 ExUnit.start()
-Ecto.Adapters.SQL.Sandbox.mode(IdeaP2p.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(Peer2peer.Repo, :manual)

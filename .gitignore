@@ -23,7 +23,7 @@ erl_crash.dump
 /tmp/
 
 # Ignore package tarball (built via "mix hex.build").
-idea_p2p-*.tar
+peer2peer-*.tar
 
 # Ignore assets that are produced by build tools.
 /priv/static/assets/

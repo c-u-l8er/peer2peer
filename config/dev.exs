@@ -1,11 +1,11 @@
 import Config
 
 # Configure your database
-config :idea_p2p, IdeaP2p.Repo,
+config :peer2peer, Peer2peer.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "idea_p2p_dev",
+  database: "peer2peer_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
@@ -17,17 +17,26 @@ config :idea_p2p, IdeaP2p.Repo,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 # Binding to loopback ipv4 address prevents access from other machines.
-config :idea_p2p, IdeaP2pWeb.Endpoint,
+config :peer2peer, Peer2peerWeb.Endpoint,
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: 4000],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "fqGMa36bCI2h1Wz8eI/9wJBjZcVZJEaLEQ9O3q/q2VA9bjs+nnhxeaNL15QuKTjk",
+  secret_key_base: "MPFgtL1+FH9fs/JH0JIsNq/U7/vSKz/NRe7M60Uet9FzvjTup+b+u4XU5m5I8R5q",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:idea_p2p, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:idea_p2p, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:peer2peer, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:peer2peer, ~w(--watch)]}
   ]
+
+config :peer2peer, Peer2peer.Repo,
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  database: "idea_p2p_dev",
+  stacktrace: true,
+  show_sensitive_data_on_connection_error: true,
+  pool_size: 10
 
 # ## SSL Support
 #
@@ -53,17 +62,17 @@ config :idea_p2p, IdeaP2pWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :idea_p2p, IdeaP2pWeb.Endpoint,
+config :peer2peer, Peer2peerWeb.Endpoint,
   live_reload: [
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/idea_p2p_web/(controllers|live|components)/.*(ex|heex)$"
+      ~r"lib/peer2peer_web/(controllers|live|components)/.*(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :idea_p2p, dev_routes: true
+config :peer2peer, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"

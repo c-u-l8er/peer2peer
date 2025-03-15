@@ -8,8 +8,8 @@ const path = require("path")
 module.exports = {
   content: [
     "./js/**/*.js",
-    "../lib/idea_p2p_web.ex",
-    "../lib/idea_p2p_web/**/*.*ex"
+    "../lib/peer2peer_web.ex",
+    "../lib/peer2peer_web/**/*.*ex"
   ],
   theme: {
     extend: {

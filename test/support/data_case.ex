@@ -1,4 +1,4 @@
-defmodule IdeaP2p.DataCase do
+defmodule Peer2peer.DataCase do
   @moduledoc """
   This module defines the setup for tests requiring
   access to the application's data layer.
@@ -10,7 +10,7 @@ defmodule IdeaP2p.DataCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use IdeaP2p.DataCase, async: true`, although
+  by setting `use Peer2peer.DataCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -18,17 +18,17 @@ defmodule IdeaP2p.DataCase do
 
   using do
     quote do
-      alias IdeaP2p.Repo
+      alias Peer2peer.Repo
 
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
-      import IdeaP2p.DataCase
+      import Peer2peer.DataCase
     end
   end
 
   setup tags do
-    IdeaP2p.DataCase.setup_sandbox(tags)
+    Peer2peer.DataCase.setup_sandbox(tags)
     :ok
   end
 
@@ -36,7 +36,7 @@ defmodule IdeaP2p.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(IdeaP2p.Repo, shared: not tags[:async])
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Peer2peer.Repo, shared: not tags[:async])
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
   end
 
