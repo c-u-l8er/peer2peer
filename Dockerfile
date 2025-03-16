@@ -69,7 +69,7 @@ RUN mix release
 FROM ${RUNNER_IMAGE}
 
 RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses5 locales \
-  && apt-get clean && rm -f /var/lib/apt/lists/*_*
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
@@ -93,8 +93,9 @@ RUN apt-get update -y && apt-get install -y postgresql-client
 # Create directory for migration scripts
 RUN mkdir -p /app/bin
 
-# Copy migration script
-COPY --chmod=0755 rel/overlays/bin/migrate /app/bin/migrate
+# Copy migration script and explicitly set execute permissions
+COPY rel/overlays/bin/migrate /app/bin/
+RUN chmod +x /app/bin/migrate
 
 USER nobody
 
