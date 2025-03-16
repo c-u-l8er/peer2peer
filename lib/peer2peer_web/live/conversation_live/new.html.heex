@@ -1,0 +1,40 @@
+<div class="max-w-2xl mx-auto py-8 px-4">
+  <h1 class="text-2xl font-bold mb-6">Create a New Conversation</h1>
+
+  <div class="bg-white p-6 rounded-lg shadow-sm">
+    <.form for={@conversation_form} phx-submit="create_conversation">
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Title</label>
+        <input
+          type="text"
+          name="title"
+          class="w-full rounded border border-gray-300 p-2"
+          placeholder="Conversation title"
+          required
+        />
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Description (optional)</label>
+        <textarea
+          name="description"
+          class="w-full rounded border border-gray-300 p-2"
+          placeholder="What's this conversation about?"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div class="flex justify-end">
+        <.link
+          navigate={~p"/conversations"}
+          class="mr-2 px-4 py-2 text-gray-700 hover:text-gray-900"
+        >
+          Cancel
+        </.link>
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          Create
+        </button>
+      </div>
+    </.form>
+  </div>
+</div>

@@ -17,24 +17,35 @@ defmodule Peer2peerWeb.ConversationLive.Show do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    conversation_id = String.to_integer(id)
+    conversation_id =
+      case Integer.parse(id) do
+        {int_id, _} -> int_id
+        :error -> nil
+      end
 
-    if connected?(socket) do
-      # Subscribe to the conversation's PubSub topic
-      Phoenix.PubSub.subscribe(Peer2peer.PubSub, "conversation:#{conversation_id}")
+    if conversation_id == nil do
+      {:ok,
+       socket
+       |> put_flash(:error, "Invalid conversation ID.")
+       |> redirect(to: ~p"/conversations")}
+    else
+      if connected?(socket) do
+        # Subscribe to the conversation's PubSub topic
+        Phoenix.PubSub.subscribe(Peer2peer.PubSub, "conversation:#{conversation_id}")
 
-      # Ensure a conversation server is running
-      Peer2peer.Conversations.ConversationSupervisor.ensure_conversation_server(conversation_id)
+        # Ensure a conversation server is running
+        Peer2peer.Conversations.ConversationSupervisor.ensure_conversation_server(conversation_id)
 
-      # Track user presence in this conversation
-      Presence.track_user_in_conversation(
-        conversation_id,
-        socket.assigns.current_user.id,
-        %{
-          username: socket.assigns.current_user.email,
-          online_at: DateTime.utc_now()
-        }
-      )
+        # Track user presence in this conversation
+        Presence.track_user_in_conversation(
+          conversation_id,
+          socket.assigns.current_user.id,
+          %{
+            username: socket.assigns.current_user.email,
+            online_at: DateTime.utc_now()
+          }
+        )
+      end
     end
 
     {:ok, conversation} =
@@ -144,7 +155,7 @@ defmodule Peer2peerWeb.ConversationLive.Show do
             if Enum.any?(messages, fn m -> m.id == message.id end) do
               messages
             else
-              [message | messages]
+              messages ++ [message]
             end
           end)
 
@@ -193,7 +204,8 @@ defmodule Peer2peerWeb.ConversationLive.Show do
       if Enum.any?(existing_messages, fn m -> m.id == message.id end) do
         existing_messages
       else
-        [message | existing_messages]
+        # Add the new message to the end of the list, not the beginning
+        existing_messages ++ [message]
       end
 
     # Remove from typing users if this user was typing
@@ -330,7 +342,8 @@ defmodule Peer2peerWeb.ConversationLive.Show do
         Map.get(user, :is_ai, false) == true
       end)
 
-    updated_messages = [ai_message | socket.assigns.messages]
+    # Add to the end of the list
+    updated_messages = socket.assigns.messages ++ [ai_message]
 
     {:noreply, assign(socket, messages: updated_messages, typing_users: typing_users)}
   end

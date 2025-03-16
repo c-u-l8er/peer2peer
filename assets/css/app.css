@@ -40,3 +40,57 @@
 .mitosis-phase-indicator .progress-fill {
     @apply h-full bg-blue-500 transition-all duration-500;
 }
+
+/* Typing indicator animation */
+.typing-dot {
+    @apply w-2 h-2 bg-gray-500 rounded-full mx-0.5;
+    animation: typing-animation 1.4s infinite ease-in-out both;
+}
+
+.animation-delay-200 {
+    animation-delay: 0.2s;
+}
+
+.animation-delay-400 {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing-animation {
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+    }
+    40% {
+        transform: scale(1);
+    }
+}
+
+/* Add a smooth shadow effect to the message input */
+#message-input {
+    resize: none; /* Prevent textarea resizing */
+    transition: all 0.2s ease;
+}
+
+#message-input:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+/* Discord-style scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

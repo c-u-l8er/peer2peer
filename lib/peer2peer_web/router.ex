@@ -72,6 +72,7 @@ defmodule Peer2peerWeb.Router do
 
       # Add conversation routes
       live "/conversations", ConversationLive.Index, :index
+      live "/conversations/new", ConversationLive.New, :new
       live "/conversations/:id", ConversationLive.Show, :show
       live "/conversations/:id/settings", ConversationLive.Settings, :edit
     end

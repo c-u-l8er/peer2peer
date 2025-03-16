@@ -1,32 +1,139 @@
-<header class="px-4 sm:px-6 lg:px-8">
-  <div class="flex items-center justify-between border-b border-zinc-100 py-3 text-sm">
-    <div class="flex items-center gap-4">
-      <a href="/">
-        <img src={~p"/images/logo.svg"} width="36" />
-      </a>
-      <p class="bg-brand/5 text-brand rounded-full px-2 font-medium leading-6">
-        v{Application.spec(:phoenix, :vsn)}
-      </p>
+<div class="flex h-screen overflow-hidden bg-gray-100">
+  <!-- Sidebar -->
+  <div class="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0">
+    <!-- Sidebar header -->
+    <div class="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+      <div class="font-bold text-lg">Peer2Peer</div>
+      <!-- Mobile menu button, visible only on small screens -->
+      <button class="sm:hidden text-gray-400 hover:text-white">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+      </button>
     </div>
-    <div class="flex items-center gap-4 font-semibold leading-6 text-zinc-900">
-      <a href="https://twitter.com/elixirphoenix" class="hover:text-zinc-700">
-        @elixirphoenix
-      </a>
-      <a href="https://github.com/phoenixframework/phoenix" class="hover:text-zinc-700">
-        GitHub
-      </a>
-      <a
-        href="https://hexdocs.pm/phoenix/overview.html"
-        class="rounded-lg bg-zinc-100 px-2 py-1 hover:bg-zinc-200/80"
-      >
-        Get Started <span aria-hidden="true">&rarr;</span>
-      </a>
+    
+<!-- Sidebar content -->
+    <div class="flex-1 overflow-y-auto py-2">
+      <!-- User section -->
+      <%= if @current_user do %>
+        <div class="px-4 mb-4">
+          <div class="flex items-center mb-2">
+            <span class="text-sm font-medium text-gray-300">My Account</span>
+          </div>
+          <div class="flex items-center p-2 rounded hover:bg-gray-700">
+            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white mr-2">
+              {String.first(@current_user.email)}
+            </div>
+            <div class="text-sm truncate">{@current_user.email}</div>
+          </div>
+        </div>
+      <% end %>
+      
+<!-- Conversations section -->
+      <div class="px-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-medium text-gray-300">Conversations</span>
+          <.link navigate={~p"/conversations"} class="text-gray-400 hover:text-white">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path
+                fill-rule="evenodd"
+                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </.link>
+        </div>
+        
+<!-- Conversations list would go here - but we need more context to render it -->
+        <!-- We'll make a placeholder for now -->
+        <.link
+          navigate={~p"/conversations/new"}
+          class="flex items-center p-2 rounded bg-blue-600 hover:bg-blue-700 mb-2"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 mr-2"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          New Conversation
+        </.link>
+        
+<!-- Navigation items -->
+        <.link navigate={~p"/conversations"} class="block p-2 rounded hover:bg-gray-700 mb-1">
+          <div class="flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5 mr-2"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            All Conversations
+          </div>
+        </.link>
+      </div>
+    </div>
+    
+<!-- Sidebar footer -->
+    <div class="px-4 py-3 border-t border-gray-700">
+      <%= if @current_user do %>
+        <div class="flex justify-between items-center">
+          <.link href={~p"/users/settings"} class="text-sm text-gray-400 hover:text-white">
+            Settings
+          </.link>
+          <.link
+            href={~p"/users/log_out"}
+            method="delete"
+            class="text-sm text-gray-400 hover:text-white"
+          >
+            Log out
+          </.link>
+        </div>
+      <% else %>
+        <div class="flex justify-between">
+          <.link href={~p"/users/register"} class="text-sm text-gray-400 hover:text-white">
+            Register
+          </.link>
+          <.link href={~p"/users/log_in"} class="text-sm text-gray-400 hover:text-white">
+            Log in
+          </.link>
+        </div>
+      <% end %>
     </div>
   </div>
-</header>
-<main class="px-4 py-20 sm:px-6 lg:px-8">
-  <div class="mx-auto max-w-2xl">
+  
+<!-- Main content area -->
+  <div class="flex-1 flex flex-col overflow-hidden">
     <.flash_group flash={@flash} />
     {@inner_content}
   </div>
-</main>
+</div>

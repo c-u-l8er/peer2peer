@@ -28,6 +28,7 @@ let csrfToken = document
 let liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: { _csrf_token: csrfToken },
+  hooks: Hooks,
 });
 
 // Show progress bar on live navigation and form submits
@@ -81,3 +82,77 @@ document.addEventListener("DOMContentLoaded", () => {
     observer.observe(messagesContainer, { childList: true });
   }
 });
+
+const Hooks = {
+  MessageInput: {
+    mounted() {
+      // Auto-resize the textarea as the user types
+      const textarea = this.el;
+
+      // Function to adjust the height
+      const adjustHeight = () => {
+        textarea.style.height = "auto";
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      };
+
+      // Adjust on input
+      textarea.addEventListener("input", adjustHeight);
+
+      // Handle form submission on Enter key (without Shift)
+      textarea.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          this.pushEvent("handle_keydown", {
+            key: "Enter",
+            value: textarea.value,
+          });
+        }
+      });
+
+      // Watch for reset flag changes
+      this.handleEvent("reset_input", () => {
+        textarea.value = "";
+        adjustHeight();
+      });
+    },
+
+    updated() {
+      // Check if we need to reset the input
+      if (this.el.dataset.reset === "true") {
+        this.el.value = "";
+        this.el.style.height = "auto";
+      }
+    },
+  },
+
+  MessageContainer: {
+    mounted() {
+      this.scrollToBottom();
+
+      // Create observer to watch for new messages
+      this.observer = new MutationObserver(() => {
+        this.scrollToBottom();
+      });
+
+      // Start observing
+      this.observer.observe(this.el, {
+        childList: true,
+        subtree: true,
+      });
+    },
+
+    updated() {
+      this.scrollToBottom();
+    },
+
+    destroyed() {
+      if (this.observer) {
+        this.observer.disconnect();
+      }
+    },
+
+    scrollToBottom() {
+      this.el.scrollTop = this.el.scrollHeight;
+    },
+  },
+};
