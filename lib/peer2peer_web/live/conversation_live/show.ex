@@ -112,18 +112,26 @@ defmodule Peer2peerWeb.ConversationLive.Show do
   defp handle_send_message(content, socket) do
     %{conversation: conversation, current_user: current_user} = socket.assigns
 
+    # Whether this is an AI-targeted message (starts with @!)
+    is_ai_targeted = String.starts_with?(content, "@! ")
+
+    # Don't Remove the @! prefix if present for clarity
+    # processed_content = if is_ai_targeted, do: String.trim_leading(content, "@!"), else: content
+
     # Create a new message - make sure we're using the fully qualified module name
     case Peer2peer.Conversations.create_message(%{
            user: current_user,
            conversation: conversation,
-           content: content
+           content: content,
+           # Store this info in metadata
+           metadata: %{ai_targeted: is_ai_targeted}
          }) do
       {:ok, message} ->
         # Notify the conversation server about the new message
         Peer2peer.Conversations.ConversationServer.add_message(conversation.id, message)
 
-        # Potentially trigger AI response
-        if should_trigger_ai_response?(socket) do
+        # Potentially trigger AI response - we'll check if this was targeted
+        if is_ai_targeted && Enum.any?(socket.assigns.ai_participants) do
           send(self(), {:generate_ai_response, message})
         end
 
@@ -346,10 +354,20 @@ defmodule Peer2peerWeb.ConversationLive.Show do
   end
 
   # Helper functions
-  defp should_trigger_ai_response?(_socket) do
-    # Simple implementation: respond if there's at least one AI participant
-    # In real implementation this will depend on socket.assigns.ai_participants
-    true
+  defp should_trigger_ai_response?(socket) do
+    # Get the most recent message content
+    latest_message = List.first(socket.assigns.messages)
+
+    # Check if the message has the @! prefix and there's at least one AI participant
+    case socket.assigns.ai_participants do
+      [] ->
+        false
+
+      _ais ->
+        latest_message &&
+          is_binary(latest_message.content) &&
+          String.starts_with?(latest_message.content, "@! ")
+    end
   end
 
   defp prepare_conversation_history(messages, latest_message) do
