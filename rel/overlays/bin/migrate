@@ -4,5 +4,7 @@ set -e
 
 echo "Starting migration script..."
 echo "Running migrations..."
+# Set a restrictive pool size just for migrations
+export POOL_SIZE=2
 /app/bin/peer2peer eval "Peer2peer.Release.migrate"
 echo "Migrations completed!"
