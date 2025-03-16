@@ -5,13 +5,6 @@
 # https://hub.docker.com/r/hexpm/elixir/tags?page=1&name=ubuntu
 # https://hub.docker.com/_/ubuntu?tab=tags
 #
-# This file is based on these images:
-#
-#   - https://hub.docker.com/r/hexpm/elixir/tags - for the build image
-#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20230227-slim - for the release image
-#   - https://pkgs.org/ - resource for finding needed packages
-#   - Ex: hexpm/elixir:1.14.4-erlang-25.3-debian-bullseye-20230227-slim
-#
 ARG ELIXIR_VERSION=1.15.7
 ARG OTP_VERSION=26.1.2
 ARG DEBIAN_VERSION=bullseye-20231009-slim
@@ -64,6 +57,13 @@ COPY config/runtime.exs config/
 COPY rel rel
 RUN mix release
 
+# Create a server script to run the release
+RUN mkdir -p /app/bin
+RUN echo '#!/bin/sh\n\
+    /app/bin/peer2peer start\n\
+    ' > /app/bin/server
+RUN chmod +x /app/bin/server
+
 # start a new build stage so that the final image will only contain
 # the compiled release and other runtime necessities
 FROM ${RUNNER_IMAGE}
@@ -93,9 +93,12 @@ RUN apt-get update -y && apt-get install -y postgresql-client
 # Create directory for migration scripts
 RUN mkdir -p /app/bin
 
-# Copy migration script and explicitly set execute permissions
-COPY rel/overlays/bin/migrate /app/bin/
-RUN chmod +x /app/bin/migrate
+# Copy migration script and set permissions
+COPY --from=builder --chown=nobody:root /app/bin/server /app/bin/server
+RUN chmod +x /app/bin/server
+
+# Copy migration script
+COPY --chmod=0755 rel/overlays/bin/migrate /app/bin/migrate
 
 USER nobody
 
