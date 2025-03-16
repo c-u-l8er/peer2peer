@@ -29,15 +29,6 @@ config :peer2peer, Peer2peerWeb.Endpoint,
     tailwind: {Tailwind, :install_and_run, [:peer2peer, ~w(--watch)]}
   ]
 
-config :peer2peer, Peer2peer.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "idea_p2p_dev",
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
-
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed

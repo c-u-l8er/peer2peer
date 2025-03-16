@@ -1,0 +1,19 @@
+
+#!/bin/sh
+
+set -e
+
+echo "Starting migration script..."
+
+# Wait for the database to be ready
+while ! pg_isready -U "$DATABASE_USER" -d "$DATABASE_NAME" -h "$DATABASE_HOST" -p 5432; do
+  echo "Database is not ready - waiting..."
+  sleep 2
+done
+
+echo "Database is ready!"
+
+# Run migrations
+echo "Running migrations..."
+/app/bin/peer2peer eval "Peer2peer.Release.migrate"
+echo "Migrations completed!"
