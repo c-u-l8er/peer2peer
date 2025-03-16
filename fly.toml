@@ -4,7 +4,7 @@ primary_region = "iad"
 kill_signal = "SIGTERM"
 
 [env]
-  PHX_HOST = "peer2peer.fly.dev"
+  PHX_HOST = "p2p.bendscript.com"
   PORT = "8080"
 
 [http_service]
