@@ -28,6 +28,9 @@ if config_env() == :prod do
       For example: ecto://USER:PASS@HOST/DATABASE
       """
 
+  # Trim any leading/trailing whitespace
+  database_url = String.trim(database_url)
+
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :peer2peer, Peer2peer.Repo,
