@@ -69,6 +69,11 @@ defmodule Peer2peerWeb.Router do
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
     end
+
+    # Add conversation routes
+    live "/conversations", ConversationLive.Index, :index
+    live "/conversations/:id", ConversationLive.Show, :show
+    live "/conversations/:id/settings", ConversationLive.Settings, :edit
   end
 
   scope "/", Peer2peerWeb do

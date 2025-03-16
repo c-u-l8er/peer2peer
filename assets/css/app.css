@@ -3,3 +3,40 @@
 @import "tailwindcss/utilities";
 
 /* This file is for your main application CSS */
+
+/* Mitosis Phase Indicator */
+.mitosis-phase-indicator {
+    @apply p-4 border rounded-lg bg-white mb-4;
+}
+
+.mitosis-phase-indicator .phase-dot {
+    @apply w-5 h-5 rounded-full bg-gray-200 relative cursor-pointer flex items-center justify-center transition-all;
+}
+
+.mitosis-phase-indicator .phase-dot.active {
+    @apply bg-blue-500;
+}
+
+.mitosis-phase-indicator .phase-line {
+    @apply flex-1 h-1 bg-gray-200;
+}
+
+.mitosis-phase-indicator .phase-line.active {
+    @apply bg-blue-500;
+}
+
+.mitosis-phase-indicator .phase-label {
+    @apply absolute -bottom-6 text-xs transform -translate-x-1/2 left-1/2 whitespace-nowrap hidden;
+}
+
+.mitosis-phase-indicator .phase-dot:hover .phase-label {
+    @apply block;
+}
+
+.mitosis-phase-indicator .progress-bar {
+    @apply h-1 bg-gray-100 rounded-full overflow-hidden;
+}
+
+.mitosis-phase-indicator .progress-fill {
+    @apply h-full bg-blue-500 transition-all duration-500;
+}

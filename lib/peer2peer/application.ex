@@ -12,6 +12,10 @@ defmodule Peer2peer.Application do
       Peer2peer.Repo,
       {DNSCluster, query: Application.get_env(:peer2peer, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Peer2peer.PubSub},
+      # Start the Registry for conversation servers
+      {Registry, keys: :unique, name: Peer2peer.ConversationRegistry},
+      # Start the conversation supervisor
+      Peer2peer.Conversations.ConversationSupervisor,
       # Start Presence
       Peer2peerWeb.Presence,
       # Start the Finch HTTP client for sending emails

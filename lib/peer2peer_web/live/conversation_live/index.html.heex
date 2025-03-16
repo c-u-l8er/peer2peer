@@ -1,0 +1,99 @@
+<div class="max-w-4xl mx-auto py-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Your Conversations</h1>
+
+    <.link
+      phx-click={JS.toggle(to: "#new-conversation-form")}
+      class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+    >
+      New Conversation
+    </.link>
+  </div>
+  
+<!-- New conversation form -->
+  <div id="new-conversation-form" class="mb-8 p-4 bg-gray-100 rounded-lg hidden">
+    <h2 class="text-lg font-semibold mb-4">Create a New Conversation</h2>
+
+    <.form for={@new_conversation_form} phx-submit="create_conversation">
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Title</label>
+        <input
+          type="text"
+          name="title"
+          class="w-full rounded border border-gray-300 p-2"
+          placeholder="Conversation title"
+          required
+        />
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Description (optional)</label>
+        <textarea
+          name="description"
+          class="w-full rounded border border-gray-300 p-2"
+          placeholder="What's this conversation about?"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div class="flex justify-end">
+        <button
+          type="button"
+          phx-click={JS.hide(to: "#new-conversation-form")}
+          class="mr-2 px-4 py-2 text-gray-700 hover:text-gray-900"
+        >
+          Cancel
+        </button>
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          Create
+        </button>
+      </div>
+    </.form>
+  </div>
+  
+<!-- Conversation list -->
+  <div class="space-y-4">
+    <%= if Enum.empty?(@conversations) do %>
+      <div class="text-center py-12 bg-gray-50 rounded-lg">
+        <p class="text-gray-500">You don't have any conversations yet.</p>
+        <p class="text-gray-500 mt-2">Click "New Conversation" to start one!</p>
+      </div>
+    <% else %>
+      <%= for conversation <- @conversations do %>
+        <.link
+          navigate={~p"/conversations/#{conversation.id}"}
+          class="block p-4 border rounded-lg hover:bg-gray-50 transition-colors flex justify-between items-center"
+        >
+          <div>
+            <h3 class="font-medium text-lg">{conversation.title}</h3>
+            <p class="text-gray-500 text-sm">{conversation.description}</p>
+            <div class="mt-2 flex items-center text-xs text-gray-400">
+              <span class="mr-4">
+                Created: {Calendar.strftime(conversation.inserted_at, "%b %d, %Y")}
+              </span>
+              <span class="flex items-center">
+                <span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>
+                {String.capitalize(to_string(conversation.status))}
+              </span>
+              <span class="ml-4">
+                Phase: {String.capitalize(to_string(conversation.mitosis_phase))}
+              </span>
+            </div>
+          </div>
+          <div class="text-gray-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="w-6 h-6"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </div>
+        </.link>
+      <% end %>
+    <% end %>
+  </div>
+</div>
