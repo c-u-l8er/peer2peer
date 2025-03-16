@@ -75,7 +75,7 @@
     <%= for message <- @messages do %>
       <.live_component
         module={Peer2peerWeb.MessageComponent}
-        id={"message-#{message.id}"}
+        id={"message-#{message.id}-#{System.system_time(:millisecond)}"}
         message={message}
         current_user={@current_user}
         sender_name={get_sender_name(message, @conversation, @ai_participants)}
@@ -84,10 +84,17 @@
   </div>
   
 <!-- Typing indicators -->
-  <div class="px-4 h-6">
+  <div class="px-4 h-12 flex flex-col justify-center">
     <%= if length(@typing_users) > 0 do %>
-      <div class="text-sm text-gray-500 italic">
-        {format_typing_users(@typing_users)}
+      <div class="flex flex-col space-y-1">
+        <%= for user <- @typing_users do %>
+          <.live_component
+            module={Peer2peerWeb.TypingIndicatorComponent}
+            id={"typing-#{user.user_id}"}
+            username={user.username}
+            is_ai={Map.get(user, :is_ai, false)}
+          />
+        <% end %>
       </div>
     <% end %>
   </div>

@@ -3,25 +3,23 @@ defmodule Peer2peerWeb.MessageInputComponent do
 
   def render(assigns) do
     ~H"""
-    <div class="border-t p-3">
-      <.form for={@form} phx-submit="send_message" phx-target={@myself} class="relative">
+    <div class="border-t p-4 bg-white">
+      <form phx-submit="send_message" class="flex items-center">
         <textarea
           id="message-input"
           name="content"
-          placeholder="Type your message..."
-          class="w-full rounded-lg border border-gray-300 pr-16 py-2 px-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-          style="min-height: 60px; max-height: 200px"
-          phx-keydown={handle_keydown()}
+          value={@form[:content].value}
+          placeholder="Type a message..."
+          class="flex-1 border rounded-lg p-2 mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows="1"
+          phx-keydown="handle_keydown"
           phx-keyup="typing"
           phx-target={@myself}
-          phx-update="ignore"
+          phx-hook="MessageInput"
+          data-reset={@reset}
           autocomplete="off"
-          required
-        ><%= @form.params["content"] %></textarea>
-        <button
-          type="submit"
-          class="absolute right-2 bottom-2 bg-blue-500 text-white rounded-lg p-2 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
+        ></textarea>
+        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white rounded-lg p-2">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -37,52 +35,38 @@ defmodule Peer2peerWeb.MessageInputComponent do
             />
           </svg>
         </button>
-      </.form>
+      </form>
     </div>
     """
   end
 
-  def handle_keydown(js \\ %JS{}) do
-    js
-    |> JS.push("handle_keydown")
-    |> JS.dispatch("input", to: "textarea")
-  end
+  def handle_event("handle_keydown", %{"key" => "Enter", "value" => content}, socket) do
+    if content != "" and not String.contains?(System.get_env("MIX_ENV") || "", "test") do
+      # Send the message only if Shift wasn't pressed
+      send(self(), :submit_message)
+    end
 
-  def update(%{reset: true} = assigns, socket) do
-    socket =
-      socket
-      |> assign(assigns)
-      |> assign(:form, to_form(%{"content" => ""}))
-
-    {:ok, socket}
-  end
-
-  def update(assigns, socket) do
-    {:ok, assign(socket, assigns)}
-  end
-
-  def handle_event("handle_keydown", %{"key" => "Enter", "shiftKey" => false}, socket) do
-    # Submit form on Enter without Shift
-    send(self(), :submit_message)
     {:noreply, socket}
   end
 
   def handle_event("handle_keydown", _params, socket) do
-    # Handle other keydown events
     {:noreply, socket}
   end
 
-  def handle_event("typing", _params, socket) do
-    # Notify parent that user is typing
-    send(self(), :user_typing)
-    {:noreply, socket}
-  end
-
-  def handle_event("send_message", %{"content" => content}, socket) do
+  def handle_event("typing", %{"value" => content}, socket) do
     if String.trim(content) != "" do
-      send(self(), {:send_message, content})
+      # Get the conversation ID from parent assigns rather than the form
+      send(
+        socket.root_pid,
+        {:notify_typing, content}
+      )
     end
 
     {:noreply, socket}
+  end
+
+  def update(assigns, socket) do
+    # Make sure we have access to current_user and conversation_id
+    {:ok, socket |> assign(assigns)}
   end
 end

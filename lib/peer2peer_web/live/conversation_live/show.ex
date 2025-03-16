@@ -2,7 +2,17 @@ defmodule Peer2peerWeb.ConversationLive.Show do
   use Peer2peerWeb, :live_view
 
   alias Peer2peer.Conversations
-  alias Peer2peer.Conversations.{Conversation, Message, ConversationServer}
+
+  alias Peer2peer.Conversations.{
+    Conversation,
+    ConversationParticipant,
+    Message,
+    AIParticipant,
+    ConversationRelationship,
+    Topic,
+    ConversationTopic
+  }
+
   alias Peer2peerWeb.Presence
 
   @impl true
@@ -70,6 +80,29 @@ defmodule Peer2peerWeb.ConversationLive.Show do
     end
   end
 
+  def handle_event("typing", %{"value" => content}, socket) do
+    if String.trim(content) != "" do
+      # Broadcast typing status to all users in the conversation
+      conversation_id = socket.assigns.conversation.id
+      user_id = socket.assigns.current_user.id
+      username = socket.assigns.current_user.email
+
+      typing_event = %{
+        user_id: user_id,
+        username: username,
+        is_ai: false
+      }
+
+      Phoenix.PubSub.broadcast(
+        Peer2peer.PubSub,
+        "conversation:#{conversation_id}",
+        {:user_typing, typing_event}
+      )
+    end
+
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("send_message", %{"content" => content}, socket) do
     {:noreply, socket} = handle_send_message(content, socket)
@@ -79,15 +112,15 @@ defmodule Peer2peerWeb.ConversationLive.Show do
   defp handle_send_message(content, socket) do
     %{conversation: conversation, current_user: current_user} = socket.assigns
 
-    # Create a new message
-    case Conversations.create_message(%{
+    # Create a new message - make sure we're using the fully qualified module name
+    case Peer2peer.Conversations.create_message(%{
            user: current_user,
            conversation: conversation,
            content: content
          }) do
       {:ok, message} ->
         # Notify the conversation server about the new message
-        ConversationServer.add_message(conversation.id, message)
+        Peer2peer.Conversations.ConversationServer.add_message(conversation.id, message)
 
         # Potentially trigger AI response
         if should_trigger_ai_response?(socket) do
@@ -98,7 +131,14 @@ defmodule Peer2peerWeb.ConversationLive.Show do
           socket
           |> assign(:message_form, to_form(%{"content" => ""}))
           |> assign(:reset_input, true)
-          |> update(:messages, fn messages -> [message | messages] end)
+          |> update(:messages, fn messages ->
+            # Only add message if it doesn't already exist
+            if Enum.any?(messages, fn m -> m.id == message.id end) do
+              messages
+            else
+              [message | messages]
+            end
+          end)
 
         # Reset the reset_input flag after a short delay
         Process.send_after(self(), :reset_input_flag, 100)
@@ -137,31 +177,21 @@ defmodule Peer2peerWeb.ConversationLive.Show do
   end
 
   @impl true
-  def handle_info({:user_typing, typing_event}, socket) do
-    typing_event = %{
-      user_id: socket.assigns.current_user.id,
-      username: socket.assigns.current_user.email
-    }
-
-    # Broadcast typing event to other users
-    Phoenix.PubSub.broadcast(
-      Peer2peer.PubSub,
-      "conversation:#{socket.assigns.conversation.id}",
-      {:user_typing, typing_event}
-    )
-
-    {:noreply, socket}
-  end
-
-  @impl true
   def handle_info({:new_message, message}, socket) do
-    # Handle incoming messages from other users
-    updated_messages = [message | socket.assigns.messages]
+    # Check if message already exists in the list to avoid duplicates
+    existing_messages = socket.assigns.messages
+
+    updated_messages =
+      if Enum.any?(existing_messages, fn m -> m.id == message.id end) do
+        existing_messages
+      else
+        [message | existing_messages]
+      end
 
     # Remove from typing users if this user was typing
     typing_users =
       Enum.reject(socket.assigns.typing_users, fn user ->
-        user.id == message.user_id
+        user.user_id == message.user_id
       end)
 
     {:noreply, assign(socket, messages: updated_messages, typing_users: typing_users)}
@@ -173,7 +203,9 @@ defmodule Peer2peerWeb.ConversationLive.Show do
     if typing_event.user_id != socket.assigns.current_user.id do
       # Add user to typing list if not already there
       typing_users =
-        if Enum.any?(socket.assigns.typing_users, fn user -> user.id == typing_event.user_id end) do
+        if Enum.any?(socket.assigns.typing_users, fn user ->
+             user.user_id == typing_event.user_id
+           end) do
           socket.assigns.typing_users
         else
           [typing_event | socket.assigns.typing_users]
@@ -186,6 +218,36 @@ defmodule Peer2peerWeb.ConversationLive.Show do
     else
       {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_info({:remove_typing_indicator, user_id}, socket) do
+    typing_users =
+      Enum.reject(socket.assigns.typing_users, fn user -> user.user_id == user_id end)
+
+    {:noreply, assign(socket, typing_users: typing_users)}
+  end
+
+  @impl true
+  def handle_info({:notify_typing, _content}, socket) do
+    # Broadcast typing status to all users in the conversation
+    conversation_id = socket.assigns.conversation.id
+    user_id = socket.assigns.current_user.id
+    username = socket.assigns.current_user.email
+
+    typing_event = %{
+      user_id: user_id,
+      username: username,
+      is_ai: false
+    }
+
+    Phoenix.PubSub.broadcast(
+      Peer2peer.PubSub,
+      "conversation:#{conversation_id}",
+      {:user_typing, typing_event}
+    )
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -366,5 +428,39 @@ defmodule Peer2peerWeb.ConversationLive.Show do
       [user1, user2 | _rest] ->
         "#{user1.username}, #{user2.username} and others are typing..."
     end
+  end
+
+  # And update the create_message function
+  def create_message(%{user: user, conversation: conversation} = params) do
+    attrs = Map.take(params, [:content, :message_type, :metadata, :parent_id])
+
+    # Use fully qualified name here
+    %Peer2peer.Conversations.Message{}
+    # And here
+    |> Peer2peer.Conversations.Message.changeset(
+      Map.merge(attrs, %{
+        conversation_id: conversation.id,
+        user_id: user.id,
+        is_ai_generated: false
+      })
+    )
+    |> Repo.insert()
+  end
+
+  # And the create_ai_message function
+  def create_ai_message(%{ai_participant: ai, conversation: conversation} = params) do
+    attrs = Map.take(params, [:content, :message_type, :metadata, :parent_id])
+
+    # Use fully qualified name here
+    %Peer2peer.Conversations.Message{}
+    # And here
+    |> Peer2peer.Conversations.Message.changeset(
+      Map.merge(attrs, %{
+        conversation_id: conversation.id,
+        ai_participant_id: ai.id,
+        is_ai_generated: true
+      })
+    )
+    |> Repo.insert()
   end
 end

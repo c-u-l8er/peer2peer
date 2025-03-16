@@ -20,8 +20,8 @@ defmodule Peer2peer.Conversations.Message do
     belongs_to :ai_participant, AIParticipant
 
     # For threading/replying
-    belongs_to :parent_message, Message, foreign_key: :parent_id
-    has_many :replies, Message, foreign_key: :parent_id
+    belongs_to :parent_message, Peer2peer.Conversations.Message, foreign_key: :parent_id
+    has_many :replies, Peer2peer.Conversations.Message, foreign_key: :parent_id
 
     timestamps(type: :utc_datetime)
   end

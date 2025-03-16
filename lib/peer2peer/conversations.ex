@@ -50,8 +50,8 @@ defmodule Peer2peer.Conversations do
         add_participant(conversation, creator, %{role: :owner, joined_at: DateTime.utc_now()})
         {:ok, conversation}
 
-      error ->
-        error
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 

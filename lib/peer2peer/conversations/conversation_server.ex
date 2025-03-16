@@ -120,6 +120,19 @@ defmodule Peer2peer.Conversations.ConversationServer do
     {:noreply, state}
   end
 
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, state) do
+    # Ignore presence diff events
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:user_typing, _typing_event}, state) do
+    # For typing events, we just need to pass them through and not update server state
+    # The LiveView clients will handle the display logic
+    {:noreply, state}
+  end
+
   # Helper functions
 
   defp next_mitosis_phase(:prophase), do: :prometaphase

@@ -55,3 +55,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+// Chat scrolling functionality
+document.addEventListener("DOMContentLoaded", () => {
+  const messagesContainer = document.getElementById("messages-container");
+
+  if (messagesContainer) {
+    const scrollToBottom = () => {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+
+    // Scroll to bottom on initial load
+    scrollToBottom();
+
+    // Create a mutation observer to watch for new messages
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.addedNodes.length) {
+          scrollToBottom();
+        }
+      }
+    });
+
+    // Start observing the messages container
+    observer.observe(messagesContainer, { childList: true });
+  }
+});
