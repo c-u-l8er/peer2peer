@@ -131,12 +131,11 @@
 <!-- List current AI participants -->
         <div class="mb-6">
           <h3 class="text-sm font-medium mb-2">Current AI Participants</h3>
-
           <%= if Enum.empty?(@ai_participants) do %>
             <p class="text-gray-500 text-sm italic">No AI participants added yet.</p>
           <% else %>
             <ul class="divide-y">
-              <%= for ai in @ai_participants do %>
+              <%= for ai <- @ai_participants do %>
                 <li class="py-3">
                   <div class="flex justify-between items-start">
                     <div>
@@ -144,7 +143,7 @@
                       <div class="text-xs text-gray-500">
                         {ai.provider} / {ai.model}
                       </div>
-                      <%= if ai.persona && ai.persona != "" do %>
+                      <%= if String.length(ai.persona) > 0 do %>
                         <div class="text-sm mt-1">{ai.persona}</div>
                       <% end %>
                     </div>

@@ -1,25 +1,116 @@
 defmodule Peer2peerWeb.ConversationLive.Show do
   use Peer2peerWeb, :live_view
 
-  # Add your existing module imports and aliases here
+  alias Peer2peer.Conversations
+  alias Peer2peer.Conversations.{Conversation, Message, ConversationServer}
+  alias Peer2peerWeb.Presence
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    # ...existing code...
+    conversation_id = String.to_integer(id)
 
-    socket =
-      socket
-      |> assign(:page_title, conversation.title)
-      |> assign(:conversation, conversation)
-      |> assign(:messages, messages)
-      |> assign(:ai_participants, ai_participants)
-      |> assign(:message_form, to_form(%{"content" => ""}))
-      |> assign(:presences, presences)
-      |> assign(:typing_users, [])
-      # Add this
-      |> assign(:reset_input, false)
+    if connected?(socket) do
+      # Subscribe to the conversation's PubSub topic
+      Phoenix.PubSub.subscribe(Peer2peer.PubSub, "conversation:#{conversation_id}")
 
-    {:ok, socket}
+      # Ensure a conversation server is running
+      Peer2peer.Conversations.ConversationSupervisor.ensure_conversation_server(conversation_id)
+
+      # Track user presence in this conversation
+      Presence.track_user_in_conversation(
+        conversation_id,
+        socket.assigns.current_user.id,
+        %{
+          username: socket.assigns.current_user.email,
+          online_at: DateTime.utc_now()
+        }
+      )
+    end
+
+    {:ok, conversation} =
+      try do
+        {:ok, Conversations.get_conversation_with_participants!(conversation_id)}
+      rescue
+        _ ->
+          {:error, :not_found}
+      end
+
+    case conversation do
+      # Match the Conversation struct itself
+      %Conversation{} = conversation ->
+        messages = Conversations.list_messages(conversation, limit: 20)
+
+        # Preload is already done, so use them directly
+        participants = conversation.participants
+        ai_participants = conversation.ai_participants
+
+        # Get presence information
+        presences = Presence.list_users_in_conversation(conversation_id)
+
+        socket =
+          socket
+          |> assign(:page_title, conversation.title)
+          |> assign(:conversation, conversation)
+          |> assign(:messages, messages)
+          |> assign(:ai_participants, ai_participants)
+          # Add participants
+          |> assign(:participants, participants)
+          |> assign(:message_form, to_form(%{"content" => ""}))
+          |> assign(:presences, presences)
+          |> assign(:typing_users, [])
+          |> assign(:reset_input, false)
+
+        {:ok, socket}
+
+      :not_found ->
+        {:ok,
+         socket
+         |> put_flash(:error, "Conversation not found.")
+         |> redirect(to: ~p"/conversations")}
+    end
+  end
+
+  @impl true
+  def handle_event("send_message", %{"content" => content}, socket) do
+    {:noreply, socket} = handle_send_message(content, socket)
+    {:noreply, socket}
+  end
+
+  defp handle_send_message(content, socket) do
+    %{conversation: conversation, current_user: current_user} = socket.assigns
+
+    # Create a new message
+    case Conversations.create_message(%{
+           user: current_user,
+           conversation: conversation,
+           content: content
+         }) do
+      {:ok, message} ->
+        # Notify the conversation server about the new message
+        ConversationServer.add_message(conversation.id, message)
+
+        # Potentially trigger AI response
+        if should_trigger_ai_response?(socket) do
+          send(self(), {:generate_ai_response, message})
+        end
+
+        socket =
+          socket
+          |> assign(:message_form, to_form(%{"content" => ""}))
+          |> assign(:reset_input, true)
+          |> update(:messages, fn messages -> [message | messages] end)
+
+        # Reset the reset_input flag after a short delay
+        Process.send_after(self(), :reset_input_flag, 100)
+
+        {:noreply, socket}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to send message.")
+         |> assign(:message_form, to_form(changeset))}
+    end
   end
 
   @impl true
@@ -36,33 +127,7 @@ defmodule Peer2peerWeb.ConversationLive.Show do
 
   @impl true
   def handle_info({:send_message, content}, socket) do
-    %{conversation: conversation, current_user: current_user} = socket.assigns
-
-    # Create a new message
-    {:ok, message} =
-      Conversations.create_message(%{
-        user: current_user,
-        conversation: conversation,
-        content: content
-      })
-
-    # Notify the conversation server about the new message
-    ConversationServer.add_message(conversation.id, message)
-
-    # Potentially trigger AI response
-    if should_trigger_ai_response?(socket) do
-      send(self(), {:generate_ai_response, message})
-    end
-
-    socket =
-      socket
-      |> assign(:message_form, to_form(%{"content" => ""}))
-      |> assign(:reset_input, true)
-      |> update(:messages, fn messages -> [message | messages] end)
-
-    # Reset the reset_input flag after a short delay
-    Process.send_after(self(), :reset_input_flag, 100)
-
+    {:noreply, socket} = handle_send_message(content, socket)
     {:noreply, socket}
   end
 
@@ -72,7 +137,7 @@ defmodule Peer2peerWeb.ConversationLive.Show do
   end
 
   @impl true
-  def handle_info(:user_typing, socket) do
+  def handle_info({:user_typing, typing_event}, socket) do
     typing_event = %{
       user_id: socket.assigns.current_user.id,
       username: socket.assigns.current_user.email
@@ -88,59 +153,155 @@ defmodule Peer2peerWeb.ConversationLive.Show do
     {:noreply, socket}
   end
 
-  # Replace existing handle_event functions with these new handler functions
   @impl true
-  def handle_event("send_message", %{"content" => content}, socket) do
-    send(self(), {:send_message, content})
+  def handle_info({:new_message, message}, socket) do
+    # Handle incoming messages from other users
+    updated_messages = [message | socket.assigns.messages]
+
+    # Remove from typing users if this user was typing
+    typing_users =
+      Enum.reject(socket.assigns.typing_users, fn user ->
+        user.id == message.user_id
+      end)
+
+    {:noreply, assign(socket, messages: updated_messages, typing_users: typing_users)}
+  end
+
+  @impl true
+  def handle_info({:user_typing, typing_event}, socket) do
+    # Don't show typing indicator for current user
+    if typing_event.user_id != socket.assigns.current_user.id do
+      # Add user to typing list if not already there
+      typing_users =
+        if Enum.any?(socket.assigns.typing_users, fn user -> user.id == typing_event.user_id end) do
+          socket.assigns.typing_users
+        else
+          [typing_event | socket.assigns.typing_users]
+        end
+
+      # Set a timer to remove typing indicator after 3 seconds
+      Process.send_after(self(), {:remove_typing_indicator, typing_event.user_id}, 3000)
+
+      {:noreply, assign(socket, typing_users: typing_users)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:remove_typing_indicator, user_id}, socket) do
+    typing_users = Enum.reject(socket.assigns.typing_users, fn user -> user.id == user_id end)
+    {:noreply, assign(socket, typing_users: typing_users)}
+  end
+
+  @impl true
+  def handle_info({:phase_changed, updated_conversation}, socket) do
+    {:noreply, assign(socket, conversation: updated_conversation)}
+  end
+
+  @impl true
+  def handle_info({:phase_progress_updated, updated_conversation}, socket) do
+    {:noreply, assign(socket, conversation: updated_conversation)}
+  end
+
+  @impl true
+  def handle_info({:generate_ai_response, triggering_message}, socket) do
+    # Pick the first available AI participant for now
+    # In a more complex implementation, you'd determine which AI should respond
+    case socket.assigns.ai_participants do
+      [ai | _] ->
+        # Start generating AI response asynchronously
+        send(self(), {:start_ai_typing, ai})
+
+        Task.async(fn ->
+          # Get conversation history for context
+          history = prepare_conversation_history(socket.assigns.messages, triggering_message)
+
+          # Generate the AI response
+          {:ok, response} = Peer2peer.AI.generate_response(history, provider: ai.provider)
+
+          # Create the AI message
+          Conversations.create_ai_message(%{
+            ai_participant: ai,
+            conversation: socket.assigns.conversation,
+            content: response.content
+          })
+        end)
+
+      [] ->
+        # No AI participants available
+        nil
+    end
+
     {:noreply, socket}
   end
 
-  # Add your other handle_event and handle_info functions here
+  @impl true
+  def handle_info({:start_ai_typing, ai}, socket) do
+    # Simulate AI typing indicator
+    typing_event = %{
+      user_id: "ai-#{ai.id}",
+      username: "#{ai.name} (AI)",
+      is_ai: true
+    }
 
-  # Append these helper functions to the ConversationLive.Show module
-  defp message_bubble_class(message, current_user) do
-    cond do
-      message.is_ai_generated ->
-        "bg-purple-100 text-gray-800"
+    # Add AI to typing users
+    typing_users = [typing_event | socket.assigns.typing_users]
 
-      message.user_id == current_user.id ->
-        "bg-blue-500 text-white"
-
-      true ->
-        "bg-gray-200 text-gray-800"
-    end
+    {:noreply, assign(socket, typing_users: typing_users)}
   end
 
-  defp get_username(message, conversation) do
-    Enum.find_value(conversation.participants, "Unknown User", fn participant ->
-      if participant.id == message.user_id, do: participant.email
+  @impl true
+  def handle_info({_ref, {:ok, ai_message}}, socket) do
+    # AI message created successfully, update the UI
+    # Remove AI from typing users
+    typing_users =
+      Enum.reject(socket.assigns.typing_users, fn user ->
+        Map.get(user, :is_ai, false) == true
+      end)
+
+    updated_messages = [ai_message | socket.assigns.messages]
+
+    {:noreply, assign(socket, messages: updated_messages, typing_users: typing_users)}
+  end
+
+  # If a Task crashes, we get a DOWN message
+  @impl true
+  def handle_info({:DOWN, _, :process, _, _}, socket) do
+    # Task completed or crashed, make sure typing indicator is removed
+    typing_users =
+      Enum.reject(socket.assigns.typing_users, fn user ->
+        Map.get(user, :is_ai, false) == true
+      end)
+
+    {:noreply, assign(socket, typing_users: typing_users)}
+  end
+
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, socket) do
+    presences = Presence.list_users_in_conversation(socket.assigns.conversation.id)
+    {:noreply, assign(socket, presences: presences)}
+  end
+
+  # Helper functions
+  defp should_trigger_ai_response?(_socket) do
+    # Simple implementation: respond if there's at least one AI participant
+    # In real implementation this will depend on socket.assigns.ai_participants
+    true
+  end
+
+  defp prepare_conversation_history(messages, latest_message) do
+    # Placeholder for preparing conversation history for AI
+    # In a real implementation, you'd format the messages properly for your AI service
+    # and potentially limit the history to fit within context windows
+    [latest_message | Enum.take(messages, 10)]
+    |> Enum.reverse()
+    |> Enum.map(fn msg ->
+      %{
+        role: if(msg.is_ai_generated, do: "assistant", else: "user"),
+        content: msg.content
+      }
     end)
-  end
-
-  defp get_ai_name(message, ai_participants) do
-    Enum.find_value(ai_participants, "AI Assistant", fn ai ->
-      if ai.id == message.ai_participant_id, do: ai.name
-    end)
-  end
-
-  defp format_timestamp(datetime) do
-    Calendar.strftime(datetime, "%H:%M")
-  end
-
-  defp format_typing_users(typing_users) do
-    case typing_users do
-      [] ->
-        ""
-
-      [user] ->
-        "#{user.username} is typing..."
-
-      [user1, user2] ->
-        "#{user1.username} and #{user2.username} are typing..."
-
-      [user1, user2 | _rest] ->
-        "#{user1.username}, #{user2.username} and others are typing..."
-    end
   end
 
   # Helper function to get sender name
@@ -157,6 +318,53 @@ defmodule Peer2peerWeb.ConversationLive.Show do
         Enum.find_value(conversation.participants, "Unknown User", fn participant ->
           if participant.id == message.user_id, do: participant.email
         end)
+    end
+  end
+
+  defp message_bubble_class(message, current_user) do
+    cond do
+      message.is_ai_generated ->
+        "bg-purple-100 text-gray-800"
+
+      message.user_id == current_user.id ->
+        "bg-blue-500 text-white"
+
+      true ->
+        "bg-gray-200 text-gray-800"
+    end
+  end
+
+  defp format_timestamp(datetime) do
+    now = DateTime.utc_now()
+
+    cond do
+      # Today
+      DateTime.to_date(datetime) == DateTime.to_date(now) ->
+        Calendar.strftime(datetime, "%H:%M")
+
+      # This year
+      datetime.year == now.year ->
+        Calendar.strftime(datetime, "%b %d, %H:%M")
+
+      # Different year
+      true ->
+        Calendar.strftime(datetime, "%b %d, %Y, %H:%M")
+    end
+  end
+
+  defp format_typing_users(typing_users) do
+    case typing_users do
+      [] ->
+        ""
+
+      [user] ->
+        "#{user.username} is typing..."
+
+      [user1, user2] ->
+        "#{user1.username} and #{user2.username} are typing..."
+
+      [user1, user2 | _rest] ->
+        "#{user1.username}, #{user2.username} and others are typing..."
     end
   end
 end

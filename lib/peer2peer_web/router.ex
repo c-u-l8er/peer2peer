@@ -10,6 +10,7 @@ defmodule Peer2peerWeb.Router do
     plug :put_root_layout, html: {Peer2peerWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    # Add this line
     plug :fetch_current_user
   end
 
@@ -68,12 +69,14 @@ defmodule Peer2peerWeb.Router do
       on_mount: [{Peer2peerWeb.UserAuth, :ensure_authenticated}] do
       live "/users/settings", UserSettingsLive, :edit
       live "/users/settings/confirm_email/:token", UserSettingsLive, :confirm_email
+
+      # Add conversation routes
+      live "/conversations", ConversationLive.Index, :index
+      live "/conversations/:id", ConversationLive.Show, :show
+      live "/conversations/:id/settings", ConversationLive.Settings, :edit
     end
 
-    # Add conversation routes
-    live "/conversations", ConversationLive.Index, :index
-    live "/conversations/:id", ConversationLive.Show, :show
-    live "/conversations/:id/settings", ConversationLive.Settings, :edit
+    delete "/users/log_out", UserSessionController, :delete
   end
 
   scope "/", Peer2peerWeb do
